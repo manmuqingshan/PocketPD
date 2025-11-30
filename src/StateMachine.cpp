@@ -86,7 +86,11 @@ void StateMachine::update()
         if (button_selectVI.longPressedFlag) // Long press
         {
             button_selectVI.clearLongPressedFlag();
-            transitionTo(State::NORMAL_PPS);
+            if (menu.menuPosition == usbpd.getPPSIndex()) {
+                transitionTo(State::NORMAL_PPS);
+            } else {
+                transitionTo(State::NORMAL_PDO);
+            }   
         }
         if (button_encoder.longPressedFlag) // Long press
         {
