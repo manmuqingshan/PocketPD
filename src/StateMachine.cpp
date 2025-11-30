@@ -89,6 +89,7 @@ void StateMachine::update()
             if (menu.menuPosition == usbpd.getPPSIndex()) {
                 transitionTo(State::NORMAL_PPS);
             } else {
+                forceSave = true;
                 transitionTo(State::NORMAL_PDO);
             }   
         }
