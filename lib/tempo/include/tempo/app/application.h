@@ -1,12 +1,16 @@
 #pragma once
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 
 #include "tempo/bus/event_queue.h"
 #include "tempo/bus/publisher.h"
+#include "tempo/core/mixin.h"
 #include "tempo/core/panic.h"
+#include "tempo/core/type_list.h"
 #include "tempo/diag/logger.h"
+#include "tempo/hardware/display.h"
 #include "tempo/hardware/stream.h"
 #include "tempo/sched/background_task.h"
 #include "tempo/sched/cooperative_scheduler.h"
@@ -14,6 +18,7 @@
 #include "tempo/sched/stage_scoped_task.h"
 #include "tempo/sched/task.h"
 #include "tempo/stage/conductor.h"
+#include "tempo/ui/use_render.h"
 
 namespace tempo {
 
@@ -26,10 +31,10 @@ namespace tempo {
      * Application is a thin wrapper around the scheduler, conductor, and event queues. It
      * does not own any hardware, drivers, app data, or other product-specific runtime data.
      *
-     * The two things it borrows by reference: Clock and StreamWriter.
+     * Borrowed by reference: Clock, StreamWriter, and optionally Display (for UseRender stages).
+     * Pass Display* into the constructor when any registered stage uses UseRender.
      *
-     * Anything else (Display, inputs, Storage, sensors) is wired directly from main.cpp into
-     * whichever Task or Stage needs it.
+     * Anything else (inputs, Storage, sensors) is wired from main into Tasks/Stages.
      *
      * Stage identity is the Stage's type. The Stages... pack defines the slot order for the
      * Conductor and StageMask.
@@ -43,6 +48,7 @@ namespace tempo {
         // clang-format off
         static constexpr size_t MaxTasks           = DEFAULT_MAX_TASKS;
         static constexpr size_t EventQueueCapacity = DEFAULT_EVENT_QUEUE_CAP;
+        static constexpr size_t StageCount         = sizeof...(Stages);
         static constexpr const char* LOG_TAG = "Application";
 
         using Event           = TEvent;
@@ -65,15 +71,24 @@ namespace tempo {
         template <typename Derived>
         using UsePublisher    = tempo::UsePublisher<Derived, Event>;
 
+        template <typename Derived, typename View>
+        using UseRender       = tempo::UseRender<Derived, View>;
+
         using tempo::UseLog<Application>::log;
         // clang-format on
     private:
         static inline Application* instance = nullptr;
 
+        struct RenderHook {
+            void (*render)(void* stage, uint32_t now_ms) = nullptr;
+            void* stage = nullptr;
+        };
+
         // —— External references
 
         const Clock& m_clock;
         StreamWriter& m_stream_writer;
+        Display* m_display = nullptr;
 
         // —— Owned subsystems
 
@@ -85,6 +100,7 @@ namespace tempo {
 
         Scheduler m_scheduler;
         Conductor m_conductor;
+        std::array<RenderHook, StageCount> m_render_hooks{};
 
         bool m_started = false;
 
@@ -97,9 +113,10 @@ namespace tempo {
         }
 
     public:
-        Application(const Clock& clock, StreamWriter& stream_writer)
+        Application(const Clock& clock, StreamWriter& stream_writer, Display* display = nullptr)
             : m_clock(clock),
               m_stream_writer(stream_writer),
+              m_display(display),
               m_task_publisher(m_task_queue),
               m_isr_publisher(m_isr_queue) {
 
@@ -114,12 +131,12 @@ namespace tempo {
         // ---- Registration (before start) ----
         template <typename T>
         bool add_task(T& task) {
-            if constexpr (std::is_base_of_v<tempo::UseLog<T>, T>) {
+            if constexpr (std::is_base_of_v<UseLogBase, T>) {
                 auto& uselog = static_cast<tempo::UseLog<T>&>(task);
                 uselog.m_log_slot.attach(m_clock, m_stream_writer);
             }
 
-            if constexpr (std::is_base_of_v<tempo::UsePublisher<T, Event>, T>) {
+            if constexpr (std::is_base_of_v<UsePublisherBase, T>) {
                 auto& usepublisher = static_cast<tempo::UsePublisher<T, Event>&>(task);
                 usepublisher.m_publisher_slot.attach(m_task_publisher);
             }
@@ -129,14 +146,24 @@ namespace tempo {
 
         template <typename S>
         void register_stage(S& stage) {
-            if constexpr (std::is_base_of_v<tempo::UseLog<S>, S>) {
+            if constexpr (std::is_base_of_v<UseLogBase, S>) {
                 auto& uselog = static_cast<tempo::UseLog<S>&>(stage);
                 uselog.m_log_slot.attach(m_clock, m_stream_writer);
             }
 
-            if constexpr (std::is_base_of_v<tempo::UsePublisher<S, Event>, S>) {
+            if constexpr (std::is_base_of_v<UsePublisherBase, S>) {
                 auto& usepublisher = static_cast<tempo::UsePublisher<S, Event>&>(stage);
                 usepublisher.m_publisher_slot.attach(m_task_publisher);
+            }
+
+            if constexpr (std::is_base_of_v<UseRenderBase, S>) {
+                TEMPO_CHECK(
+                    m_display != nullptr, "UseRender stage requires Display* in Application ctor"
+                );
+                constexpr size_t idx = type_index_v<S, Stages...>;
+                // Friend access to UseRender private attach / render_if_needed.
+                stage.attach(*m_display);
+                m_render_hooks[idx] = RenderHook{&render_hook<S>, &stage};
             }
 
             m_conductor.register_stage(stage);
@@ -199,7 +226,32 @@ namespace tempo {
 
             // 4. Give the current stage a chance to run its own on_tick.
             m_conductor.tick(now);
+
+            // 5. Render UseRender stages once per tick (dirty and/or period).
+            render_current(now);
         }
+
+    private:
+        /**
+         * @brief Static so the function pointer is a friend of UseRender via Application.
+         */
+        template <typename S>
+        static void render_hook(void* stage, uint32_t now_ms) {
+            static_cast<S*>(stage)->render_if_needed(now_ms);
+        }
+
+        void render_current(uint32_t now_ms) {
+            const size_t idx = m_conductor.current_index();
+            if (idx >= StageCount) {
+                return;
+            }
+            const RenderHook& hook = m_render_hooks[idx];
+            if (hook.render != nullptr && hook.stage != nullptr) {
+                hook.render(hook.stage, now_ms);
+            }
+        }
+
+    public:
 
         // —— Accessors
 

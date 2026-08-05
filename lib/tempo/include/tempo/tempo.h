@@ -6,6 +6,7 @@
 #pragma once
 
 // core
+#include "tempo/core/mixin.h"
 #include "tempo/core/panic.h"
 #include "tempo/core/time.h"
 
@@ -14,6 +15,9 @@
 #include "tempo/hardware/encoder_input.h"
 #include "tempo/hardware/display.h"
 #include "tempo/hardware/stream.h"
+
+// ui
+#include "tempo/ui/use_render.h"
 
 // bus
 #include "tempo/bus/event_queue.h"

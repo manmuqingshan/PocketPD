@@ -7,6 +7,7 @@
 #pragma once
 
 #include "event_queue.h"
+#include "tempo/core/mixin.h"
 
 namespace tempo {
 
@@ -103,7 +104,7 @@ namespace tempo {
      * @tparam Event    The Application's event variant type.
      */
     template <typename Derived, typename Event>
-    class UsePublisher : public detail::UsePublisherStorage<Derived, Event> {
+    class UsePublisher : public UsePublisherBase, public detail::UsePublisherStorage<Derived, Event> {
         UsePublisher() = default;
 
         template <typename E, typename... Stages>
@@ -112,13 +113,9 @@ namespace tempo {
 
     public:
         /**
-         * @brief DO NOT USE in production. Test-only seam for unit tests that construct a
-         * Stage or Task directly, without an Application. Calling this method manually is undefined
-         * behavior.
-         *
-         * @param publisher The publisher to attach.
+         * @brief Test-only
          */
-        void attach_publisher_INTERNAL_DO_NOT_USE(Publisher<Event>& publisher) {
+        void INTERNAL_DO_NOT_USE_attach_publisher(Publisher<Event>& publisher) {
             this->attach_publisher(publisher);
         }
     };

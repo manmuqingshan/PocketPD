@@ -16,6 +16,7 @@
 #include <fmt/format.h>
 #pragma pop_macro("F")
 
+#include "tempo/core/mixin.h"
 #include "tempo/core/time.h"
 #include "tempo/core/type_name.h"
 #include "tempo/diag/stream_iterator.h"
@@ -334,7 +335,7 @@ namespace tempo {
      * @tparam Derived The host class (CRTP).
      */
     template <typename Derived>
-    class UseLog : public detail::UseLogStorage<Derived> {
+    class UseLog : public UseLogBase, public detail::UseLogStorage<Derived> {
         UseLog() = default;
 
         template <typename Event, typename... Stages>
