@@ -62,15 +62,15 @@ TEST(TableView, DrawsRowTextVerbatim) {
 
 TEST(TableView, MoveClampsAndReportsChange) {
     TableView view;
-    EXPECT_FALSE(view.cursor_move(-1, 3)); // already at top
+    EXPECT_FALSE(view.move_cursor(-1, 3)); // already at top
     EXPECT_EQ(view.cursor(), 0);
-    EXPECT_TRUE(view.cursor_move(2, 3)); // 0 -> 2
+    EXPECT_TRUE(view.move_cursor(2, 3)); // 0 -> 2
     EXPECT_EQ(view.cursor(), 2);
-    EXPECT_FALSE(view.cursor_move(5, 3)); // clamped at bottom, no change
+    EXPECT_FALSE(view.move_cursor(5, 3)); // clamped at bottom, no change
     EXPECT_EQ(view.cursor(), 2);
-    EXPECT_TRUE(view.cursor_move(-2, 3)); // 2 -> 0
+    EXPECT_TRUE(view.move_cursor(-2, 3)); // 2 -> 0
     EXPECT_EQ(view.cursor(), 0);
-    EXPECT_FALSE(view.cursor_move(1, 0)); // empty list
+    EXPECT_FALSE(view.move_cursor(1, 0)); // empty list
 }
 
 TEST(TableView, ScrollsWindowToKeepCursorVisible) {
@@ -89,7 +89,7 @@ TEST(TableView, ScrollsWindowToKeepCursorVisible) {
     TableStyle style;
     style.visible_rows = 2;
     TableView view{style};
-    view.cursor_move(2, 4); // cursor -> 2, below the initial window
+    view.move_cursor(2, 4); // cursor -> 2, below the initial window
 
     EXPECT_CALL(display, draw_text(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(display, draw_text(10, 12, StrEq("r1"))).Times(1);
@@ -119,7 +119,7 @@ TEST(TableView, StickyScrollPersistsAcrossRenders) {
     style.visible_rows = 2;
     TableView view{style};
 
-    view.cursor_move(3, 4); // cursor -> 3, window becomes r2/r3
+    view.move_cursor(3, 4); // cursor -> 3, window becomes r2/r3
     view.render(display, model);
 
     EXPECT_CALL(display, draw_text(_, _, _)).Times(AnyNumber());
@@ -128,7 +128,7 @@ TEST(TableView, StickyScrollPersistsAcrossRenders) {
     EXPECT_CALL(display, draw_text(10, _, StrEq("r0"))).Times(0);
     EXPECT_CALL(display, draw_text(10, _, StrEq("r1"))).Times(0);
 
-    view.cursor_move(-1, 4); // cursor -> 2, still inside window: stays r2/r3
+    view.move_cursor(-1, 4); // cursor -> 2, still inside window: stays r2/r3
     view.render(display, model);
 }
 
@@ -148,7 +148,7 @@ TEST(TableView, ScrollsBackUpWhenCursorMovesAboveWindow) {
     style.visible_rows = 2;
     TableView view{style};
 
-    view.cursor_move(3, 4); // window r2/r3
+    view.move_cursor(3, 4); // window r2/r3
     view.render(display, model);
 
     EXPECT_CALL(display, draw_text(_, _, _)).Times(AnyNumber());
@@ -158,7 +158,7 @@ TEST(TableView, ScrollsBackUpWhenCursorMovesAboveWindow) {
     EXPECT_CALL(display, draw_text(10, _, StrEq("r2"))).Times(0);
     EXPECT_CALL(display, draw_text(10, _, StrEq("r3"))).Times(0);
 
-    view.cursor_move(-3, 4); // cursor -> 0, window follows up to r0/r1
+    view.move_cursor(-3, 4); // cursor -> 0, window follows up to r0/r1
     view.render(display, model);
 }
 
@@ -177,7 +177,7 @@ TEST(TableView, NoScrollWhenAllRowsFit) {
     TableStyle style;
     style.visible_rows = 5;
     TableView view{style};
-    view.cursor_move(2, 3); // cursor -> 2
+    view.move_cursor(2, 3); // cursor -> 2
 
     EXPECT_CALL(display, draw_text(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(display, draw_text(10, 12, StrEq("a"))).Times(1);

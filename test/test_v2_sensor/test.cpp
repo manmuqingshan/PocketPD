@@ -8,8 +8,6 @@
 
 #include <variant>
 
-#include <MockOutputGate.h>
-#include <MockPdSink.h>
 #include <MockPowerMonitor.h>
 #include <MockSupplyVoltageSource.h>
 #include <gmock/gmock.h>
@@ -18,12 +16,10 @@
 #include <tempo/bus/publisher.h>
 
 #include "v2/app.h"
-#include "v2/domain/instrument.h"
 #include "v2/events.h"
 #include "v2/tasks/sensor_task.h"
 
 using namespace pocketpd;
-using ::testing::NiceMock;
 
 using TestQueue = tempo::EventQueue<Event, 8>;
 using TestPublisher = tempo::QueuePublisher<Event, 8>;
@@ -45,10 +41,7 @@ TEST(SensorTask, OnTickPublishesFusedLoadAndSupply) {
     FakeSupplyVoltageSource supply;
     TestQueue q;
     TestPublisher pub(q);
-    NiceMock<MockPdSink> sink;
-    NiceMock<MockOutputGate> gate;
-    Instrument instrument{sink, gate};
-    SensorTask task(monitor, supply, instrument);
+    SensorTask task(monitor, supply);
     task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     monitor.push({5000, 1234, true});
@@ -70,10 +63,7 @@ TEST(SensorTask, BothInvalidDoesNotPublish) {
     FakeSupplyVoltageSource supply;
     TestQueue q;
     TestPublisher pub(q);
-    NiceMock<MockPdSink> sink;
-    NiceMock<MockOutputGate> gate;
-    Instrument instrument{sink, gate};
-    SensorTask task(monitor, supply, instrument);
+    SensorTask task(monitor, supply);
     task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     monitor.push({0, 0, false});
@@ -88,10 +78,7 @@ TEST(SensorTask, LoadValidSupplyInvalidStillPublishesWithInvalidSupply) {
     FakeSupplyVoltageSource supply;
     TestQueue q;
     TestPublisher pub(q);
-    NiceMock<MockPdSink> sink;
-    NiceMock<MockOutputGate> gate;
-    Instrument instrument{sink, gate};
-    SensorTask task(monitor, supply, instrument);
+    SensorTask task(monitor, supply);
     task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     monitor.push({3000, 500, true});
