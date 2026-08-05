@@ -142,7 +142,7 @@ TEST(EnergyTask, OnTickPublishesEnergyEvent) {
     EnergyTask task(gate);
     TestQueue q;
     TestPublisher pub(q);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     task.on_event(make_sensor(0, 5000, 1000), 0);
     task.on_event(make_sensor(100, 5000, 1000), 100);
@@ -164,8 +164,10 @@ TEST(NormalStageEnergy, RLongRequestsEnergyStageWithSamePdoIndex) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
-    EnergyStage energy(display, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
+    EnergyStage energy(gate);
+    energy.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     conductor.register_stage(energy);
@@ -187,13 +189,14 @@ namespace {
     struct EnergyStageHarness {
         NiceMock<MockDisplay> display;
         FakeOutputGate gate;
-        EnergyStage energy{display, gate};
+        EnergyStage energy{gate};
         TestConductor conductor;
 
         EnergyStageHarness() {
             conductor.register_stage(energy);
             energy.prepare(1);
             conductor.start<EnergyStage>(0);
+    energy.INTERNAL_DO_NOT_USE_render(0);
         }
     };
 
@@ -217,8 +220,10 @@ TEST(EnergyStage, RLongReturnsToNormalStageWithStoredProfile) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
-    EnergyStage energy(display, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
+    EnergyStage energy(gate);
+    energy.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     conductor.register_stage(energy);
@@ -256,21 +261,20 @@ TEST(EnergyStage, EnergyEventDriveDisplayedAccumulators) {
     NiceMock<MockDisplay> display;
     FakeOutputGate gate;
 
-    EnergyStage energy(display, gate);
+    EnergyStage energy(gate);
+    energy.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(energy);
 
     energy.prepare(0);
     conductor.start<EnergyStage>(0);
+    energy.INTERNAL_DO_NOT_USE_render(0);
 
     EnergyEvent ee{};
     ee.accumulated_wh = 1.23;
     ee.accumulated_ah = 0.45;
     ee.total_seconds = 65;
     energy.on_event(conductor, ee, 0);
-
-    // First on_tick arms the IntervalTimer; second fires the render.
-    energy.on_tick(conductor, 0);
 
     EXPECT_CALL(display, draw_text(::testing::_, ::testing::_, ::testing::_))
         .Times(::testing::AnyNumber());
@@ -280,7 +284,7 @@ TEST(EnergyStage, EnergyEventDriveDisplayedAccumulators) {
         .Times(AtLeast(1));
     EXPECT_CALL(display, flush()).Times(AtLeast(1));
 
-    energy.on_tick(conductor, 100);
+    energy.INTERNAL_DO_NOT_USE_render(0);
 }
 
 // ——— EnergyStage lock ————————————————————————————————————————————————————————
@@ -289,11 +293,13 @@ TEST(EnergyStage, ComboLongTogglesLock) {
     NiceMock<MockDisplay> display;
     NiceMock<MockOutputGate> gate;
 
-    EnergyStage stage(display, gate);
+    EnergyStage stage(gate);
+    stage.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(stage);
     stage.prepare(0);
     conductor.start<EnergyStage>(0);
+    stage.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_FALSE(stage.locked());
     stage.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
@@ -308,11 +314,13 @@ TEST(EnergyStage, LockedIgnoresRShort) {
     EXPECT_CALL(gate, disable()).Times(::testing::AnyNumber());
     EXPECT_CALL(gate, enable()).Times(0);
 
-    EnergyStage stage(display, gate);
+    EnergyStage stage(gate);
+    stage.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(stage);
     stage.prepare(0);
     conductor.start<EnergyStage>(0);
+    stage.INTERNAL_DO_NOT_USE_render(0);
 
     stage.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(stage.locked());
@@ -324,11 +332,13 @@ TEST(EnergyStage, OnEnterResetsLocked) {
     NiceMock<MockDisplay> display;
     NiceMock<MockOutputGate> gate;
 
-    EnergyStage stage(display, gate);
+    EnergyStage stage(gate);
+    stage.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(stage);
     stage.prepare(0);
     conductor.start<EnergyStage>(0);
+    stage.INTERNAL_DO_NOT_USE_render(0);
 
     stage.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(stage.locked());
@@ -360,7 +370,7 @@ TEST(EnergyView, LockedRendersPadlock) {
     vm.output_enabled = false;
     vm.locked = true;
 
-    EnergyView::render(display, vm);
+    EnergyView{}.render(display, vm);
 }
 
 TEST(EnergyView, UnlockedDoesNotDrawPadlock) {
@@ -377,7 +387,7 @@ TEST(EnergyView, UnlockedDoesNotDrawPadlock) {
     vm.output_enabled = false;
     vm.locked = false;
 
-    EnergyView::render(display, vm);
+    EnergyView{}.render(display, vm);
 }
 
 TEST(EnergyStage, LockedIgnoresRLong) {
@@ -387,13 +397,16 @@ TEST(EnergyStage, LockedIgnoresRLong) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    EnergyStage energy(display, gate);
-    NormalStage normal(display, sink, gate);
+    EnergyStage energy(gate);
+    energy.INTERNAL_DO_NOT_USE_attach_display(display);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(energy);
     conductor.register_stage(normal);
     energy.prepare(0);
     conductor.start<EnergyStage>(0);
+    energy.INTERNAL_DO_NOT_USE_render(0);
 
     energy.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(energy.locked());

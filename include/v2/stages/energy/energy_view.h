@@ -5,15 +5,14 @@
  */
 #pragma once
 
-#include <tempo/hardware/display.h>
-
 #include <array>
 #include <cstdint>
 #include <cstdio>
 
+#include <tempo/hardware/display.h>
+
 #include "v2/events.h"
 #include "v2/images.h"
-#include "v2/pocketpd.h"
 
 namespace pocketpd {
 
@@ -58,7 +57,7 @@ namespace pocketpd {
         static constexpr uint8_t PADLOCK_W = 8;
         static constexpr uint8_t PADLOCK_H = 8;
 
-        static void render(Display& display, const EnergyViewModel& vm) {
+        void render(Display& display, const EnergyViewModel& vm) {
             display.clear();
             std::array<char, 16> buf{};
 
@@ -100,16 +99,15 @@ namespace pocketpd {
                     PADLOCK_X, PADLOCK_Y, PADLOCK_W, PADLOCK_H, bitmap::PADLOCK.data()
                 );
             }
-
-            display.flush();
         }
 
     private:
         /**
          * @brief Render a value at (x,y) followed by a unit label 2 px to the right.
          */
-        static void
-        draw_value(Display& display, uint8_t x, uint8_t y, const char* value, const char* unit) {
+        static void draw_value(
+            Display& display, uint8_t x, uint8_t y, const char* value, const char* unit
+        ) {
             display.draw_text(x, y, value);
             const auto w = display.text_width(value);
             display.draw_text(static_cast<uint8_t>(x + w + UNIT_GAP_PX), y, unit);

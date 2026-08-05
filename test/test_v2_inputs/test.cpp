@@ -99,7 +99,7 @@ TEST(ButtonTask, ShortGestureOnQuickRelease) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     encoder.set_held(true);
     task.poll(0);
@@ -119,7 +119,7 @@ TEST(ButtonTask, LongGestureFiresWhileHeldAndSilencesRelease) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     encoder.set_held(true);
     task.poll(0);
@@ -144,7 +144,7 @@ TEST(ButtonTask, RButtonShortGestureRoutesToR) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     r.set_held(true);
     task.poll(0);
@@ -164,7 +164,7 @@ TEST(ButtonTask, LButtonLongPress) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     l.set_held(true);
     task.poll(0);
@@ -185,7 +185,7 @@ TEST(ButtonTask, FlipDisplaySwapsPublishedLR) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     prefs.set({.flip_display_enabled = true});
 
@@ -215,7 +215,7 @@ TEST(ButtonTask, FlipDisplayLeavesEncoderAndComboAlone) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     prefs.set({.flip_display_enabled = true});
 
@@ -247,7 +247,7 @@ TEST(EncoderTask, OnStartLatchesBaselineWithoutEvent) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     EncoderTask task(enc, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     enc.set_position(42);
     task.on_start();
@@ -264,7 +264,7 @@ TEST(EncoderTask, NonZeroDeltaPublishes) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     EncoderTask task(enc, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
     task.on_start();
 
     enc.set_position(3);
@@ -282,7 +282,7 @@ TEST(EncoderTask, NoChangeMeansNoEvent) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     EncoderTask task(enc, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
     task.on_start();
     task.poll();
 
@@ -297,7 +297,7 @@ TEST(EncoderTask, NegativeDelta) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     EncoderTask task(enc, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
     enc.set_position(5);
     task.on_start();
     enc.set_position(2);
@@ -315,7 +315,7 @@ TEST(EncoderTask, FlipDisplayNegatesDelta) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     EncoderTask task(enc, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     prefs.set({.flip_display_enabled = true});
 
@@ -337,7 +337,7 @@ TEST(ButtonTask, BriefSimultaneousTapDropsBothShorts) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     l.set_held(true);
     r.set_held(true);
@@ -358,7 +358,7 @@ TEST(ButtonTask, ComboLongAtThresholdEmitsLRSuppressesIndividuals) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     l.set_held(true);
     r.set_held(true);
@@ -394,7 +394,7 @@ TEST(ButtonTask, AbortedComboCancelsRemainingSingles) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     l.set_held(true);
     task.poll(0);
@@ -422,7 +422,7 @@ TEST(ButtonTask, EncoderButtonNotSuppressedByCombo) {
     ::testing::NiceMock<MockEeprom> eeprom;
     PreferencesStore prefs{eeprom};
     ButtonTask task(encoder, l, r, prefs);
-    task.attach_publisher_INTERNAL_DO_NOT_USE(pub);
+    task.INTERNAL_DO_NOT_USE_attach_publisher(pub);
 
     l.set_held(true);
     r.set_held(true);

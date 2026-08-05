@@ -36,15 +36,18 @@ TEST(BootStage, OnEnterDrawsSplash) {
         EXPECT_CALL(display, flush());
     }
 
-    BootStage stage(display);
+    BootStage stage;
+    stage.INTERNAL_DO_NOT_USE_attach_display(display);
     BootConductor conductor;
     conductor.register_stage(stage);
     conductor.start<BootStage>(0);
+    stage.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(BootStage, RequestsObtainAfterBootTimeout) {
     NiceMock<MockDisplay> display;
-    BootStage stage(display);
+    BootStage stage;
+    stage.INTERNAL_DO_NOT_USE_attach_display(display);
     BootConductor conductor;
     conductor.register_stage(stage);
     conductor.start<BootStage>(0);
@@ -63,7 +66,8 @@ TEST(BootStage, RequestsObtainAfterBootTimeout) {
 
 TEST(BootStage, TransitionsToObtainOnApply) {
     NiceMock<MockDisplay> display;
-    BootStage stage(display);
+    BootStage stage;
+    stage.INTERNAL_DO_NOT_USE_attach_display(display);
     BootConductor conductor;
     conductor.register_stage(stage);
     conductor.start<BootStage>(0);

@@ -7,28 +7,43 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
-#include <variant>
 
-#include <tempo/bus/visit.h>
 #include <tempo/hardware/display.h>
 
 #include "v2/events.h"
 #include "v2/images.h"
 #include "v2/pocketpd.h"
-#include "v2/stages/normal/mode.h"
 
 namespace pocketpd {
 
+    enum class NormalViewMode : uint8_t {
+        Passthrough,
+        Fixed,
+        Pps,
+    };
+
     struct NormalViewModel {
-        int8_t active_pdo_index = -1;
+        NormalViewMode mode = NormalViewMode::Passthrough;
+        int8_t pdo_index = -1;
+
+        // Shown as target (PPS) or PDO nominal (Fixed). Ignored in Passthrough.
+        int32_t setpoint_mv = 0;
+        int32_t setpoint_ma = 0;
+        AdjustMode adjust_mode = AdjustMode::VOLTAGE;
+        uint8_t voltage_idx = 0;
+        uint8_t current_idx = 0;
+        int32_t comp_offset_mv = 0;
+
+        LoadReading load_reading{};
+        SupplyReading supply_reading{};
         bool output_enabled = false;
         bool readout_visible = true;
         bool locked = false;
         uint8_t arrow_frame = 0;
-        LoadReading load_reading{};
-        SupplyReading supply_reading{};
-        Mode mode = PassthroughMode{};
-        int32_t comp_offset_mv = 0;
+
+        uint8_t cursor_index() const {
+            return (adjust_mode == AdjustMode::VOLTAGE) ? voltage_idx : current_idx;
+        }
     };
 
     class NormalView {
@@ -40,7 +55,6 @@ namespace pocketpd {
         static constexpr uint8_t A_TARGET_Y = 62;
         static constexpr uint8_t TARGET_RIGHT_X = 75;
         static constexpr uint8_t STATUS_X = 110;
-        static constexpr uint8_t OUTPUT_LABEL_X = 90;
 
         static constexpr uint8_t ARROW_X = 108;
         static constexpr uint8_t ARROW_Y = 20;
@@ -55,7 +69,7 @@ namespace pocketpd {
         static constexpr uint8_t PADLOCK_W = 8;
         static constexpr uint8_t PADLOCK_H = 8;
 
-        static void render(tempo::Display& d, const NormalViewModel& vm) {
+        void render(tempo::Display& d, const NormalViewModel& vm) {
             d.clear();
 
             std::array<char, 32> buf{};
@@ -69,18 +83,19 @@ namespace pocketpd {
 
             d.set_font(tempo::Font::BASE);
 
-            std::visit(
-                tempo::overloaded{
-                    [&](const PassthroughMode&) { draw_passthrough(d); },
-                    [&](const FixedMode& mode) { draw_fixed(d, vm, mode, buf); },
-                    [&](const PPSMode& mode) { draw_pps(d, vm, mode, buf); },
-                },
-                vm.mode
-            );
+            switch (vm.mode) {
+            case NormalViewMode::Passthrough:
+                draw_passthrough(d);
+                break;
+            case NormalViewMode::Fixed:
+                draw_fixed(d, vm, buf);
+                break;
+            case NormalViewMode::Pps:
+                draw_pps(d, vm, buf);
+                break;
+            }
 
             draw_output_indicator(d, vm);
-
-            d.flush();
         }
 
     private:
@@ -113,38 +128,32 @@ namespace pocketpd {
         static void draw_pdo_badge(
             tempo::Display& d, const NormalViewModel& vm, std::array<char, 32>& buf, const char* tag
         ) {
-            std::snprintf(buf.data(), buf.size(), "[%u]", vm.active_pdo_index);
+            std::snprintf(buf.data(), buf.size(), "[%u]", vm.pdo_index);
             const auto index_x = STATUS_X - d.text_width(buf.data()) - 2;
             d.draw_text(index_x, 63, buf.data());
             d.draw_text(STATUS_X, 64, tag);
         }
 
         static void draw_fixed(
-            tempo::Display& d,
-            const NormalViewModel& vm,
-            const FixedMode& mode,
-            std::array<char, 32>& buf
+            tempo::Display& d, const NormalViewModel& vm, std::array<char, 32>& buf
         ) {
             draw_pdo_badge(d, vm, buf, "PDO");
 
-            std::snprintf(buf.data(), buf.size(), "%ld mV", static_cast<long>(mode.pdo_max_mv));
+            std::snprintf(buf.data(), buf.size(), "%ld mV", static_cast<long>(vm.setpoint_mv));
             auto w = d.text_width(buf.data());
             d.draw_text(static_cast<uint8_t>(TARGET_RIGHT_X - w), V_TARGET_Y, buf.data());
 
-            std::snprintf(buf.data(), buf.size(), "%ld mA", static_cast<long>(mode.pdo_max_ma));
+            std::snprintf(buf.data(), buf.size(), "%ld mA", static_cast<long>(vm.setpoint_ma));
             w = d.text_width(buf.data());
             d.draw_text(static_cast<uint8_t>(TARGET_RIGHT_X - w), A_TARGET_Y, buf.data());
         }
 
         static void draw_pps(
-            tempo::Display& d,
-            const NormalViewModel& vm,
-            const PPSMode& mode,
-            std::array<char, 32>& buf
+            tempo::Display& d, const NormalViewModel& vm, std::array<char, 32>& buf
         ) {
             draw_pdo_badge(d, vm, buf, "PPS");
 
-            std::snprintf(buf.data(), buf.size(), "%ld mV", static_cast<long>(mode.target_mv));
+            std::snprintf(buf.data(), buf.size(), "%ld mV", static_cast<long>(vm.setpoint_mv));
             auto w = d.text_width(buf.data());
             d.draw_text(static_cast<uint8_t>(TARGET_RIGHT_X - w), V_TARGET_Y, buf.data());
 
@@ -153,13 +162,13 @@ namespace pocketpd {
                 d.draw_text(TARGET_RIGHT_X + 2, V_TARGET_Y, buf.data());
             }
 
-            std::snprintf(buf.data(), buf.size(), "%ld mA", static_cast<long>(mode.target_ma));
+            std::snprintf(buf.data(), buf.size(), "%ld mA", static_cast<long>(vm.setpoint_ma));
             w = d.text_width(buf.data());
             d.draw_text(static_cast<uint8_t>(TARGET_RIGHT_X - w), A_TARGET_Y, buf.data());
 
             const uint8_t cursor_y =
-                ((mode.adjust_mode == AdjustMode::VOLTAGE) ? V_TARGET_Y : A_TARGET_Y) + 1;
-            d.draw_box(CURSOR_X.at(mode.cursor_index()), cursor_y, CURSOR_W, 1);
+                ((vm.adjust_mode == AdjustMode::VOLTAGE) ? V_TARGET_Y : A_TARGET_Y) + 1;
+            d.draw_box(CURSOR_X.at(vm.cursor_index()), cursor_y, CURSOR_W, 1);
         }
 
         static void draw_output_indicator(tempo::Display& d, const NormalViewModel& vm) {

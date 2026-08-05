@@ -31,13 +31,17 @@ namespace {
         NiceMock<MockEeprom> eeprom;
         FakeDisplayOrientation orientation;
         PreferencesStore prefs{eeprom};
-        MenuStage menu{display};
-        ProfilePickerStage picker{display, sink};
-        SettingsStage settings_stage{display, orientation, prefs};
-        NormalStage normal{display, sink, gate};
+        MenuStage menu;
+        ProfilePickerStage picker{sink};
+        SettingsStage settings_stage{orientation, prefs};
+        NormalStage normal{sink, gate};
         TestConductor conductor;
 
         Harness() {
+            menu.INTERNAL_DO_NOT_USE_attach_display(display);
+            picker.INTERNAL_DO_NOT_USE_attach_display(display);
+            settings_stage.INTERNAL_DO_NOT_USE_attach_display(display);
+            normal.INTERNAL_DO_NOT_USE_attach_display(display);
             conductor.register_stage(menu);
             conductor.register_stage(picker);
             conductor.register_stage(settings_stage);
@@ -58,11 +62,13 @@ TEST(MenuStage, RendersTwoItemsWithCursorAtTop) {
         EXPECT_CALL(h.display, flush());
     }
     h.conductor.start<MenuStage>(0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(MenuStage, EncoderMovesCursorAndRerenders) {
     Harness h;
     h.conductor.start<MenuStage>(0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
     ::testing::Mock::VerifyAndClearExpectations(&h.display);
 
     EXPECT_CALL(h.display, clear()).Times(1);
@@ -72,28 +78,34 @@ TEST(MenuStage, EncoderMovesCursorAndRerenders) {
     EXPECT_CALL(h.display, flush()).Times(1);
 
     h.menu.on_event(h.conductor, EncoderEvent{1}, 0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(MenuStage, EncoderClampsAtTopAndBottom) {
     Harness h;
     h.conductor.start<MenuStage>(0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
     ::testing::Mock::VerifyAndClearExpectations(&h.display);
 
     EXPECT_CALL(h.display, clear()).Times(0);
     h.menu.on_event(h.conductor, EncoderEvent{-5}, 0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
     ::testing::Mock::VerifyAndClearExpectations(&h.display);
 
     EXPECT_CALL(h.display, clear()).Times(1);
     h.menu.on_event(h.conductor, EncoderEvent{5}, 0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
     ::testing::Mock::VerifyAndClearExpectations(&h.display);
 
     EXPECT_CALL(h.display, clear()).Times(0);
     h.menu.on_event(h.conductor, EncoderEvent{1}, 0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(MenuStage, EncoderLongOnProfilePickerRequestsPicker) {
     Harness h;
     h.conductor.start<MenuStage>(0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
 
     h.menu.on_event(h.conductor, ButtonEvent{ButtonId::ENCODER, Gesture::LONG}, 0);
 
@@ -105,6 +117,7 @@ TEST(MenuStage, EncoderLongOnProfilePickerRequestsPicker) {
 TEST(MenuStage, EncoderLongOnSettingsRequestsSettings) {
     Harness h;
     h.conductor.start<MenuStage>(0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
 
     h.menu.on_event(h.conductor, EncoderEvent{1}, 0);
     h.menu.on_event(h.conductor, ButtonEvent{ButtonId::ENCODER, Gesture::LONG}, 0);
@@ -132,6 +145,7 @@ TEST(MenuStage, LLongReturnsToNormalStage) {
 TEST(MenuStage, IgnoresUnboundButtonsAndShortPresses) {
     Harness h;
     h.conductor.start<MenuStage>(0);
+    h.menu.INTERNAL_DO_NOT_USE_render(0);
 
     h.menu.on_event(h.conductor, ButtonEvent{ButtonId::L, Gesture::SHORT}, 0);
     h.menu.on_event(h.conductor, ButtonEvent{ButtonId::R, Gesture::SHORT}, 0);

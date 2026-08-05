@@ -1,7 +1,6 @@
 /**
  * @file menu_stage.h
  * @brief Top-level menu stage.
- *
  */
 #pragma once
 
@@ -10,18 +9,18 @@
 #include <variant>
 
 #include <tempo/bus/visit.h>
-#include <tempo/hardware/display.h>
 
 #include "v2/app.h"
 #include "v2/events.h"
+#include "v2/stages/menu/menu_view.h"
 #include "v2/ui/table_view.h"
 
 namespace pocketpd {
 
-    class MenuStage : public App::Stage, public App::UseLog<MenuStage> {
+    class MenuStage : public App::Stage,
+                      public App::UseLog<MenuStage>,
+                      public App::UseRender<MenuStage, MenuView> {
     private:
-        using Display = tempo::Display;
-
         enum class Item : uint8_t {
             PROFILE_PICKER,
             SETTINGS,
@@ -37,31 +36,18 @@ namespace pocketpd {
             {Item::SETTINGS, "Settings"},
         }};
 
-        Display& m_display;
-        TableView m_table;
+        std::array<TableRow, ITEMS.size()> m_rows{};
 
-        int count() const {
-            return ITEMS.size();
-        }
-
-        void draw() {
-            std::array<TableRow, ITEMS.size()> rows{};
-            for (size_t i = 0; i < ITEMS.size(); ++i) {
-                rows[i].text = ITEMS[i].label;
-            }
-
-            TableModel model;
-            model.rows = rows.data();
-            model.count = static_cast<uint8_t>(ITEMS.size());
-            m_table.render(m_display, model);
+        uint8_t count() const {
+            return static_cast<uint8_t>(ITEMS.size());
         }
 
     public:
-        explicit MenuStage(Display& display) : m_display(display) {}
+        MenuStage() = default;
 
         void on_enter(Conductor&, uint32_t) override {
-            m_table.reset();
-            draw();
+            view().reset();
+            request_render();
         }
 
         void on_event(Conductor& conductor, const Event& event, uint32_t) override {
@@ -70,8 +56,8 @@ namespace pocketpd {
                     if (evt.delta == 0) {
                         return;
                     }
-                    if (m_table.move(evt.delta, static_cast<uint8_t>(count()))) {
-                        draw();
+                    if (view().cursor_move(evt.delta, count())) {
+                        request_render();
                     }
                 },
                 [&](const ButtonEvent& evt) {
@@ -80,7 +66,7 @@ namespace pocketpd {
                         return;
                     }
                     if (evt.id == ButtonId::ENCODER && evt.gesture == Gesture::LONG) {
-                        switch (ITEMS[m_table.cursor()].item) {
+                        switch (ITEMS[view().cursor()].item) {
                         case Item::PROFILE_PICKER:
                             conductor.push<ProfilePickerStage>();
                             break;
@@ -93,6 +79,16 @@ namespace pocketpd {
                 [](const auto&) {},
             };
             std::visit(handler, event);
+        }
+
+        MenuViewModel view_model() {
+            for (size_t i = 0; i < ITEMS.size(); ++i) {
+                m_rows[i].text = ITEMS[i].label;
+            }
+            return MenuViewModel{
+                .rows = m_rows.data(),
+                .count = count(),
+            };
         }
     };
 

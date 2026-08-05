@@ -1,30 +1,27 @@
 /**
  * @file settings_stage.h
  * @brief Boolean settings list stage.
- *
  */
 #pragma once
 
 #include <array>
 #include <cstdint>
-#include <cstdio>
 #include <variant>
 
 #include <tempo/bus/visit.h>
-#include <tempo/hardware/display.h>
 
 #include "v2/app.h"
 #include "v2/events.h"
 #include "v2/hal/display_orientation.h"
 #include "v2/preferences_store.h"
-#include "v2/ui/table_view.h"
+#include "v2/stages/settings/settings_view.h"
 
 namespace pocketpd {
 
-    class SettingsStage : public App::Stage, public App::UseLog<SettingsStage> {
+    class SettingsStage : public App::Stage,
+                          public App::UseLog<SettingsStage>,
+                          public App::UseRender<SettingsStage, SettingsView> {
     private:
-        using Display = tempo::Display;
-
         enum class Item : uint8_t {
             RESTORE_PROFILE,
             VOLTAGE_COMPENSATE,
@@ -42,13 +39,11 @@ namespace pocketpd {
             {Item::FLIP_DISPLAY, "Flip display"},
         }};
 
-        Display& m_display;
         DisplayOrientation& m_orientation;
         PreferencesStore& m_prefs;
-        TableView m_table{};
 
-        int count() const {
-            return ITEMS.size();
+        uint8_t count() const {
+            return static_cast<uint8_t>(ITEMS.size());
         }
 
         bool value_at(Item item) const {
@@ -66,7 +61,7 @@ namespace pocketpd {
 
         void toggle_current() {
             Preferences prefs = m_prefs.get();
-            switch (ITEMS[m_table.cursor()].item) {
+            switch (ITEMS[view().cursor()].item) {
             case Item::RESTORE_PROFILE:
                 prefs.restore_last_profile_enabled = !prefs.restore_last_profile_enabled;
                 break;
@@ -79,34 +74,16 @@ namespace pocketpd {
                 break;
             }
             m_prefs.set(prefs);
-
-            draw();
-        }
-
-        void draw() {
-            std::array<std::array<char, 32>, ITEMS.size()> buffers{};
-            std::array<TableRow, ITEMS.size()> rows{};
-            for (size_t i = 0; i < ITEMS.size(); ++i) {
-                const char mark = value_at(ITEMS[i].item) ? 'X' : ' ';
-                std::snprintf(
-                    buffers[i].data(), buffers[i].size(), "[%c] %s", mark, ITEMS[i].label
-                );
-                rows[i].text = buffers[i].data();
-            }
-
-            TableModel model;
-            model.rows = rows.data();
-            model.count = static_cast<uint8_t>(ITEMS.size());
-            m_table.render(m_display, model);
+            request_render();
         }
 
     public:
-        SettingsStage(Display& display, DisplayOrientation& orientation, PreferencesStore& prefs)
-            : m_display(display), m_orientation(orientation), m_prefs(prefs) {}
+        SettingsStage(DisplayOrientation& orientation, PreferencesStore& prefs)
+            : m_orientation(orientation), m_prefs(prefs) {}
 
         void on_enter(Conductor&, uint32_t) override {
-            m_table.reset();
-            draw();
+            view().reset();
+            request_render();
         }
 
         void on_exit(Conductor&, uint32_t) override {
@@ -121,8 +98,8 @@ namespace pocketpd {
                     if (evt.delta == 0) {
                         return;
                     }
-                    if (m_table.move(evt.delta, static_cast<uint8_t>(count()))) {
-                        draw();
+                    if (view().cursor_move(evt.delta, count())) {
+                        request_render();
                     }
                 },
                 [&](const ButtonEvent& evt) {
@@ -138,6 +115,16 @@ namespace pocketpd {
             };
 
             std::visit(handler, event);
+        }
+
+        SettingsViewModel view_model() const {
+            SettingsViewModel vm;
+            vm.count = count();
+            for (size_t i = 0; i < ITEMS.size(); ++i) {
+                vm.rows[i].label = ITEMS[i].label;
+                vm.rows[i].enabled = value_at(ITEMS[i].item);
+            }
+            return vm;
         }
     };
 

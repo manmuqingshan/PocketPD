@@ -64,7 +64,8 @@ TEST(ObtainStage, ShortButtonJumpsToProfilePicker) {
 
     ObtainStage stage(sink, default_prefs);
     NiceMock<MockDisplay> picker_display;
-    ProfilePickerStage picker(picker_display, sink);
+    ProfilePickerStage picker(sink);
+    picker.INTERNAL_DO_NOT_USE_attach_display(picker_display);
     TestConductor conductor;
     conductor.register_stage(stage);
     conductor.register_stage(picker);
@@ -86,7 +87,8 @@ TEST(ObtainStage, EncoderRotationJumpsToProfilePicker) {
 
     ObtainStage stage(sink, default_prefs);
     NiceMock<MockDisplay> picker_display;
-    ProfilePickerStage picker(picker_display, sink);
+    ProfilePickerStage picker(sink);
+    picker.INTERNAL_DO_NOT_USE_attach_display(picker_display);
     TestConductor conductor;
     conductor.register_stage(stage);
     conductor.register_stage(picker);
@@ -108,7 +110,8 @@ TEST(ObtainStage, TimeoutTransitionsToProfilePicker) {
 
     ObtainStage stage(sink, default_prefs);
     NiceMock<MockDisplay> picker_display;
-    ProfilePickerStage picker(picker_display, sink);
+    ProfilePickerStage picker(sink);
+    picker.INTERNAL_DO_NOT_USE_attach_display(picker_display);
     TestConductor conductor;
     conductor.register_stage(stage);
     conductor.register_stage(picker);
@@ -133,7 +136,8 @@ TEST(BootStage, RequestsObtainAfterTimeout) {
     EXPECT_CALL(sink, begin()).WillOnce(Return(true));
     EXPECT_CALL(sink, pdo_count()).WillRepeatedly(Return(0));
 
-    BootStage boot(display);
+    BootStage boot;
+    boot.INTERNAL_DO_NOT_USE_attach_display(display);
     ObtainStage obtain(sink, default_prefs);
     TestConductor conductor;
     conductor.register_stage(boot);
@@ -174,7 +178,8 @@ TEST(ObtainStage, RememberedProfileResolvesToNormal) {
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
     ObtainStage stage(sink, config);
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(stage);
     conductor.register_stage(normal);
@@ -203,7 +208,8 @@ TEST(ObtainStage, RememberOnButNoMatchFallsToPicker) {
     EXPECT_CALL(sink, pdo_max_voltage_mv(::testing::_)).WillRepeatedly(Return(20000));
 
     ObtainStage stage(sink, config);
-    ProfilePickerStage picker(display, sink);
+    ProfilePickerStage picker(sink);
+    picker.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(stage);
     conductor.register_stage(picker);
@@ -227,7 +233,8 @@ TEST(ObtainStage, SkipPickerDisabledFollowsNormalTimeoutPath) {
     EXPECT_CALL(sink, pdo_count()).WillRepeatedly(Return(2));
 
     ObtainStage stage(sink, config);
-    ProfilePickerStage picker(display, sink);
+    ProfilePickerStage picker(sink);
+    picker.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(stage);
     conductor.register_stage(picker);

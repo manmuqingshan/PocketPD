@@ -71,7 +71,7 @@ namespace pocketpd {
             m_scroll_top = 0;
         }
 
-        bool move(int delta, uint8_t count) {
+        bool move_cursor(int delta, uint8_t count) {
             if (count == 0) {
                 return false;
             }
@@ -99,8 +99,6 @@ namespace pocketpd {
 
                 display.draw_text(m_style.text_x, y, model.rows[i].text);
             }
-
-            display.flush();
         }
     };
 

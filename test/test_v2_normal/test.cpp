@@ -53,12 +53,14 @@ TEST(NormalStage, OnEnterPdoProfileRequestsFixedPdo) {
     EXPECT_CALL(sink, set_pdo(2)).Times(1).WillOnce(Return(true));
     EXPECT_CALL(sink, set_pps_pdo).Times(0);
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
 
     normal.prepare(2);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(NormalStage, OnEnterPpsProfileResetsTargetsToDefaults) {
@@ -73,12 +75,14 @@ TEST(NormalStage, OnEnterPpsProfileResetsTargetsToDefaults) {
     EXPECT_CALL(sink, set_pdo).Times(0);
     EXPECT_CALL(sink, set_pps_pdo).Times(0); // PpsControlTask owns sink writes
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
 
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
     EXPECT_EQ(normal.target_mv(), 5000);
     EXPECT_EQ(normal.target_ma(), 1000);
 }
@@ -93,11 +97,13 @@ TEST(NormalStage, ReEnteringSamePpsProfilePreservesEdits) {
     EXPECT_CALL(sink, pdo_max_current_ma(1)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, EncoderEvent{-2}, 0);
     ASSERT_EQ(normal.target_mv(), 7000);
@@ -122,11 +128,13 @@ TEST(NormalStage, SwitchingPpsProfilesResetsTargetsToNewMinimum) {
     EXPECT_CALL(sink, pdo_max_current_ma(2)).WillRepeatedly(Return(5000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
     normal.on_event(conductor, EncoderEvent{-100}, 0);
     ASSERT_NE(normal.target_mv(), 3300);
 
@@ -152,11 +160,13 @@ TEST(NormalStage, OnEnterWithNegativeIndexRendersPassthrough) {
     EXPECT_CALL(display, draw_text(_, _, HasSubstr("Passthrough"))).Times(::testing::AtLeast(1));
     EXPECT_CALL(display, flush()).Times(::testing::AtLeast(1));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(-1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(NormalStage, RShortToggleEnablesAndDisablesOutput) {
@@ -170,11 +180,13 @@ TEST(NormalStage, RShortToggleEnablesAndDisablesOutput) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, ButtonEvent{ButtonId::R, Gesture::SHORT}, 0);
     EXPECT_TRUE(enabled);
@@ -190,13 +202,16 @@ TEST(NormalStage, LLongRequestsMenu) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
-    MenuStage menu(display);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
+    MenuStage menu;
+    menu.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     conductor.register_stage(menu);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, ButtonEvent{ButtonId::L, Gesture::LONG}, 0);
 
@@ -213,11 +228,13 @@ TEST(NormalStage, EncoderEventsIgnoredInPdoBranch) {
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
     EXPECT_CALL(sink, set_pps_pdo).Times(0);
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     ::testing::Mock::VerifyAndClearExpectations(&gate);
     EXPECT_CALL(gate, enable).Times(0);
@@ -233,7 +250,7 @@ namespace {
         NiceMock<MockDisplay> display;
         NiceMock<MockPdSink> sink;
         NiceMock<MockOutputGate> gate;
-        NormalStage normal{display, sink, gate};
+        NormalStage normal{sink, gate};
         TestConductor conductor;
 
         explicit PpsHarness(int pdo_index = 1, int v_lo = 3300, int v_hi = 11000, int a_hi = 3000) {
@@ -242,9 +259,11 @@ namespace {
             EXPECT_CALL(sink, pdo_max_voltage_mv(pdo_index)).WillRepeatedly(Return(v_hi));
             EXPECT_CALL(sink, pdo_max_current_ma(pdo_index)).WillRepeatedly(Return(a_hi));
             EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
+            normal.INTERNAL_DO_NOT_USE_attach_display(display);
             conductor.register_stage(normal);
             normal.prepare(static_cast<int8_t>(pdo_index));
             conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
         }
     };
 
@@ -332,11 +351,13 @@ TEST(NormalStage, LShortDoesNothingInPdoBranch) {
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
     EXPECT_CALL(sink, set_pps_pdo).Times(0);
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     const auto mode_before = normal.adjust_mode();
     normal.on_event(conductor, ButtonEvent{ButtonId::L, Gesture::SHORT}, 0);
@@ -369,7 +390,8 @@ TEST(NormalStage, OnEnterPdoBranchRendersVAReadoutAndPdoIndex) {
     EXPECT_CALL(display, draw_text(::testing::_, ::testing::_, StrEq("OFF"))).Times(AtLeast(1));
     EXPECT_CALL(display, flush()).Times(AtLeast(1));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(2);
@@ -377,6 +399,7 @@ TEST(NormalStage, OnEnterPdoBranchRendersVAReadoutAndPdoIndex) {
         conductor, SensorEvent{LoadReading{0, 5000, 1234}, SupplyReading{0, 20000, true}}, 0
     );
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(NormalView, LockedRendersPadlock) {
@@ -396,12 +419,14 @@ TEST(NormalView, LockedRendersPadlock) {
         .Times(1);
 
     NormalViewModel vm{};
-    vm.mode = FixedMode{};
+    vm.mode = NormalViewMode::Fixed;
+    vm.setpoint_mv = 9000;
+    vm.setpoint_ma = 2000;
     vm.output_enabled = false;
     vm.locked = true;
-    vm.active_pdo_index = 0;
+    vm.pdo_index = 0;
 
-    NormalView::render(display, vm);
+    NormalView{}.render(display, vm);
 }
 
 TEST(NormalView, UnlockedDoesNotDrawPadlock) {
@@ -415,12 +440,14 @@ TEST(NormalView, UnlockedDoesNotDrawPadlock) {
         .Times(0);
 
     NormalViewModel vm{};
-    vm.mode = FixedMode{};
+    vm.mode = NormalViewMode::Fixed;
+    vm.setpoint_mv = 9000;
+    vm.setpoint_ma = 2000;
     vm.output_enabled = false;
     vm.locked = false;
-    vm.active_pdo_index = 0;
+    vm.pdo_index = 0;
 
-    NormalView::render(display, vm);
+    NormalView{}.render(display, vm);
 }
 
 TEST(NormalView, ReadoutHiddenKeepsLabelsHidesValues) {
@@ -437,14 +464,16 @@ TEST(NormalView, ReadoutHiddenKeepsLabelsHidesValues) {
     EXPECT_CALL(display, draw_text(_, 48, HasSubstr("1."))).Times(0);
 
     NormalViewModel vm{};
-    vm.mode = FixedMode{};
+    vm.mode = NormalViewMode::Fixed;
+    vm.setpoint_mv = 9000;
+    vm.setpoint_ma = 2000;
     vm.output_enabled = false;
     vm.readout_visible = false;
-    vm.active_pdo_index = 0;
+    vm.pdo_index = 0;
     vm.load_reading = LoadReading{0, 5000, 1234};
     vm.supply_reading = SupplyReading{0, 20000, true};
 
-    NormalView::render(display, vm);
+    NormalView{}.render(display, vm);
 }
 
 TEST(NormalStage, ComboLongTogglesLock) {
@@ -454,11 +483,13 @@ TEST(NormalStage, ComboLongTogglesLock) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_FALSE(normal.locked());
     normal.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
@@ -476,11 +507,13 @@ TEST(NormalStage, LockedIgnoresRShort) {
     EXPECT_CALL(gate, disable()).Times(::testing::AnyNumber());
     EXPECT_CALL(gate, enable()).Times(0);
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(normal.locked());
@@ -498,11 +531,13 @@ TEST(NormalStage, LockedIgnoresEncoder) {
     EXPECT_CALL(sink, pdo_max_current_ma(1)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     const int32_t before = normal.target_mv();
     normal.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
@@ -517,11 +552,13 @@ TEST(NormalStage, OnEnterResetsLocked) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(normal.locked());
@@ -538,13 +575,16 @@ TEST(NormalStage, LockedIgnoresLLong) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
-    ProfilePickerStage picker(display, sink);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
+    ProfilePickerStage picker(sink);
+    picker.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     conductor.register_stage(picker);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(normal.locked());
@@ -560,13 +600,16 @@ TEST(NormalStage, LockedIgnoresRLong) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
-    EnergyStage energy(display, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
+    EnergyStage energy(gate);
+    energy.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     conductor.register_stage(energy);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, ButtonEvent{ButtonId::L_R, Gesture::LONG}, 0);
     ASSERT_TRUE(normal.locked());
@@ -603,15 +646,17 @@ TEST(NormalStagePublishing, EmitsPpsTargetOnPpsEntry) {
     EXPECT_CALL(sink, pdo_max_current_ma(::testing::_)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_TRUE(find_pps_event(queue, [](const PpsTargetEvent& e) {
         return e.pdo_index == 1 && e.target_mv == 5000 && e.target_ma == 1000;
@@ -626,15 +671,17 @@ TEST(NormalStagePublishing, EmitsInactivePpsOnFixedEntry) {
     EXPECT_CALL(sink, is_index_pps(::testing::_)).WillRepeatedly(Return(false));
     EXPECT_CALL(sink, set_pdo(2)).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(2);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_TRUE(find_pps_event(queue, [](const PpsTargetEvent& e) {
         return e.pdo_index == -1 && e.target_mv == 0 && e.target_ma == 0;
@@ -647,14 +694,16 @@ TEST(NormalStagePublishing, EmitsInactivePpsOnPassthroughEntry) {
     NiceMock<MockOutputGate> gate;
     EXPECT_CALL(sink, pdo_count()).WillRepeatedly(Return(0));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_TRUE(find_pps_event(queue, [](const PpsTargetEvent& e) { return e.pdo_index == -1; }));
 }
@@ -670,15 +719,17 @@ TEST(NormalStagePublishing, EmitsRefreshedPpsTargetOnEncoderApply) {
     EXPECT_CALL(sink, pdo_max_current_ma(::testing::_)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     // Drain entry events.
     while (pop_as<PpsTargetEvent>(queue) != nullptr) {
@@ -704,11 +755,13 @@ TEST(NormalStageCompState, CachesCompStateEventForViewModel) {
     EXPECT_CALL(sink, pdo_max_current_ma).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, CompStateEvent{60}, 0);
     EXPECT_EQ(normal.comp_offset_mv(), 60);
@@ -743,13 +796,15 @@ TEST(PpsViewRender, OffsetSuffixHiddenWhenZero) {
     EXPECT_CALL(display, draw_box).Times(::testing::AnyNumber());
 
     NormalViewModel vm{};
-    vm.mode = make_pps_mode(sink, 5000, 1000);
-    vm.active_pdo_index = 0;
+    vm.mode = NormalViewMode::Pps;
+    vm.setpoint_mv = 5000;
+    vm.setpoint_ma = 1000;
+    vm.pdo_index = 0;
     vm.comp_offset_mv = 0;
     vm.output_enabled = true;
     vm.readout_visible = true;
 
-    NormalView::render(display, vm);
+    NormalView{}.render(display, vm);
 }
 
 TEST(PpsViewRender, OffsetSuffixRenderedWhenNonZero) {
@@ -763,13 +818,15 @@ TEST(PpsViewRender, OffsetSuffixRenderedWhenNonZero) {
     EXPECT_CALL(display, draw_box).Times(::testing::AnyNumber());
 
     NormalViewModel vm{};
-    vm.mode = make_pps_mode(sink, 5000, 1000);
-    vm.active_pdo_index = 0;
+    vm.mode = NormalViewMode::Pps;
+    vm.setpoint_mv = 5000;
+    vm.setpoint_ma = 1000;
+    vm.pdo_index = 0;
     vm.comp_offset_mv = 60;
     vm.output_enabled = true;
     vm.readout_visible = true;
 
-    NormalView::render(display, vm);
+    NormalView{}.render(display, vm);
 }
 
 TEST(NormalStage, PpsRestoreSeedsSavedTarget) {
@@ -782,11 +839,13 @@ TEST(NormalStage, PpsRestoreSeedsSavedTarget) {
     EXPECT_CALL(sink, pdo_max_current_ma(1)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1, 9000, 2500);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_EQ(normal.target_mv(), 9000);
     EXPECT_EQ(normal.target_ma(), 2500);
@@ -802,11 +861,13 @@ TEST(NormalStage, PpsRestoreClampsToPdoRange) {
     EXPECT_CALL(sink, pdo_max_current_ma(1)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1, 15000, 5000);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_EQ(normal.target_mv(), 11000);
     EXPECT_EQ(normal.target_ma(), 3000);
@@ -822,11 +883,13 @@ TEST(NormalStage, PrepareWithoutRestoreUsesDefaults) {
     EXPECT_CALL(sink, pdo_max_current_ma(1)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_EQ(normal.target_mv(), 5000);
     EXPECT_EQ(normal.target_ma(), 1000);
@@ -858,15 +921,17 @@ TEST(NormalStagePublishing, EmitsActiveProfileOnPpsEntry) {
     EXPECT_CALL(sink, pdo_max_current_ma(_)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(1);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_TRUE(find_active_event(queue, [](const ActiveProfileEvent& e) {
         return e.is_pps && e.pdo_index == 1 && e.mv == 5000 && e.ma == 1000;
@@ -882,15 +947,17 @@ TEST(NormalStagePublishing, EmitsActiveProfileOnFixedEntry) {
     EXPECT_CALL(sink, pdo_max_current_ma(2)).WillRepeatedly(Return(5000));
     EXPECT_CALL(sink, set_pdo(2)).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(2);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_TRUE(find_active_event(queue, [](const ActiveProfileEvent& e) {
         return !e.is_pps && e.pdo_index == 2 && e.mv == 20000 && e.ma == 0;
@@ -907,15 +974,17 @@ TEST(NormalStagePublishing, EmitsActiveProfileOnEncoderEdit) {
     EXPECT_CALL(sink, pdo_max_current_ma(_)).WillRepeatedly(Return(3000));
     EXPECT_CALL(sink, set_pps_pdo).WillRepeatedly(Return(true));
 
-    NormalStage normal(display, sink, gate);
+    NormalStage normal(sink, gate);
+    normal.INTERNAL_DO_NOT_USE_attach_display(display);
     TestQueue queue;
     TestPublisher publisher(queue);
-    normal.attach_publisher_INTERNAL_DO_NOT_USE(publisher);
+    normal.INTERNAL_DO_NOT_USE_attach_publisher(publisher);
 
     TestConductor conductor;
     conductor.register_stage(normal);
     normal.prepare(0);
     conductor.start<NormalStage>(0);
+    normal.INTERNAL_DO_NOT_USE_render(0);
 
     normal.on_event(conductor, EncoderEvent{-1}, 0);
     const int expected = 5000 + static_cast<int>(VOLTAGE_INCREMENTS_MV[0]);

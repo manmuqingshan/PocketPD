@@ -31,13 +31,17 @@ namespace {
         NiceMock<MockEeprom> eeprom;
         FakeDisplayOrientation orientation;
         PreferencesStore prefs{eeprom};
-        SettingsStage stage{display, orientation, prefs};
-        MenuStage menu{display};
-        ProfilePickerStage picker{display, sink};
-        NormalStage normal{display, sink, gate};
+        SettingsStage stage{orientation, prefs};
+        MenuStage menu;
+        ProfilePickerStage picker{sink};
+        NormalStage normal{sink, gate};
         TestConductor conductor;
 
         Harness() {
+            stage.INTERNAL_DO_NOT_USE_attach_display(display);
+            menu.INTERNAL_DO_NOT_USE_attach_display(display);
+            picker.INTERNAL_DO_NOT_USE_attach_display(display);
+            normal.INTERNAL_DO_NOT_USE_attach_display(display);
             conductor.register_stage(stage);
             conductor.register_stage(menu);
             conductor.register_stage(picker);
@@ -53,6 +57,7 @@ TEST(SettingsStage, RendersOneRowWithUncheckedBox) {
     EXPECT_CALL(h.display, draw_text(0, 12, StrEq(">"))).Times(1);
     EXPECT_CALL(h.display, draw_text(10, 12, StrEq("[ ] Restore profile"))).Times(1);
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(SettingsStage, RendersCheckedWhenSettingTrue) {
@@ -61,11 +66,13 @@ TEST(SettingsStage, RendersCheckedWhenSettingTrue) {
     EXPECT_CALL(h.display, draw_text(_, _, _)).Times(::testing::AnyNumber());
     EXPECT_CALL(h.display, draw_text(10, 12, StrEq("[X] Restore profile"))).Times(1);
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(SettingsStage, EncoderLongTogglesInRamWithoutSaving) {
     Harness h;
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 
     EXPECT_CALL(h.eeprom, save(_)).Times(0);
 
@@ -127,11 +134,13 @@ TEST(SettingsStage, RendersVoltageCompRowBelowSkipPicker) {
     EXPECT_CALL(h.display, draw_text(10, 12, StrEq("[ ] Restore profile"))).Times(1);
     EXPECT_CALL(h.display, draw_text(10, 24, StrEq("[ ] Voltage comp"))).Times(1);
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(SettingsStage, EncoderMovesCursorToVoltageCompRow) {
     Harness h;
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
     ::testing::Mock::VerifyAndClearExpectations(&h.display);
 
     EXPECT_CALL(h.display, draw_text(_, _, _)).Times(::testing::AnyNumber());
@@ -139,11 +148,13 @@ TEST(SettingsStage, EncoderMovesCursorToVoltageCompRow) {
     EXPECT_CALL(h.display, draw_text(0, 12, StrEq(">"))).Times(0);
 
     h.stage.on_event(h.conductor, EncoderEvent{1}, 0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(SettingsStage, EncoderLongOnVoltageCompTogglesPreference) {
     Harness h;
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 
     h.stage.on_event(h.conductor, EncoderEvent{1}, 0);
     h.stage.on_event(h.conductor, ButtonEvent{ButtonId::ENCODER, Gesture::LONG}, 0);
@@ -176,11 +187,13 @@ TEST(SettingsStage, RendersFlipDisplayRowBelowVoltageComp) {
     EXPECT_CALL(h.display, draw_text(_, _, _)).Times(::testing::AnyNumber());
     EXPECT_CALL(h.display, draw_text(10, 36, StrEq("[ ] Flip display"))).Times(1);
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 }
 
 TEST(SettingsStage, EncoderLongOnFlipDisplayTogglesPreferenceAndApplies) {
     Harness h;
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 
     h.stage.on_event(h.conductor, EncoderEvent{1}, 0);
     h.stage.on_event(h.conductor, EncoderEvent{1}, 0);
@@ -195,6 +208,7 @@ TEST(SettingsStage, EncoderLongOnFlipDisplayTogglesPreferenceAndApplies) {
 TEST(SettingsStage, FlipDisplayToggleTwiceRestoresOrientation) {
     Harness h;
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 
     h.stage.on_event(h.conductor, EncoderEvent{1}, 0);
     h.stage.on_event(h.conductor, EncoderEvent{1}, 0);
@@ -209,6 +223,7 @@ TEST(SettingsStage, FlipDisplayToggleTwiceRestoresOrientation) {
 TEST(SettingsStage, TogglingOtherItemsDoesNotTouchOrientation) {
     Harness h;
     h.conductor.start<SettingsStage>(0);
+    h.stage.INTERNAL_DO_NOT_USE_render(0);
 
     h.stage.on_event(h.conductor, ButtonEvent{ButtonId::ENCODER, Gesture::LONG}, 0);
 

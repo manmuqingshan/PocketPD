@@ -5,26 +5,26 @@
  */
 #pragma once
 
-#include <tempo/core/time.h>
-#include <tempo/hardware/display.h>
-
 #include <cstdint>
 
+#include <tempo/core/time.h>
+
 #include "v2/app.h"
-#include "v2/images.h"
 #include "v2/pocketpd.h"
+#include "v2/stages/boot/boot_view.h"
 
 namespace pocketpd {
 
-    class BootStage : public App::Stage, public App::UseLog<BootStage> {
+    class BootStage : public App::Stage,
+                      public App::UseLog<BootStage>,
+                      public App::UseRender<BootStage, BootView> {
     private:
-        tempo::Display& m_display;
         tempo::TimeoutTimer m_timeout;
 
     public:
         static constexpr const char* LOG_TAG = "Boot";
 
-        explicit BootStage(tempo::Display& display) : m_display(display) {}
+        BootStage() = default;
 
         const char* name() const override {
             return "BOOT";
@@ -32,17 +32,17 @@ namespace pocketpd {
 
         void on_enter(Conductor&, uint32_t now_ms) override {
             m_timeout.set(now_ms, BOOT_TO_OBTAIN_MS);
-            m_display.clear();
-            m_display.draw_bitmap(0, 0, 128 / 8, 64, bitmap::LOGO.data());
-            m_display.draw_text(67, 64, "FW: ");
-            m_display.draw_text(87, 64, FW_VERSION);
-            m_display.flush();
+            request_render();
         }
 
         void on_tick(Conductor& conductor, uint32_t now_ms) override {
             if (m_timeout.reached(now_ms)) {
                 conductor.replace<ObtainStage>();
             }
+        }
+
+        BootViewModel view_model() const {
+            return BootViewModel{.fw_version = FW_VERSION};
         }
     };
 

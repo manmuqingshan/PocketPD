@@ -34,8 +34,9 @@ namespace pocketpd {
     ArduinoClock arduino_clock;
     ArduinoStreamWriter arduino_stream_writer;
     ArduinoStreamReader arduino_stream_reader;
+    U8g2Display u8g2_display;
 
-    App app(arduino_clock, arduino_stream_writer);
+    App app(arduino_clock, arduino_stream_writer, &u8g2_display);
 
     ArduinoTwoWireDevice i2c_device_ap33772{Wire, ap33772::ADDRESS};
     Ap33772PdSink pd_sink{i2c_device_ap33772, ::delay};
@@ -49,8 +50,6 @@ namespace pocketpd {
     Ap33772SupplyVoltageSource supply_voltage_source{pd_sink};
 #endif
 
-    U8g2Display u8g2_display;
-
     ArduinoOutputGate output_gate{pin_output_Enable};
 
     ArduinoEeprom eeprom;
@@ -63,13 +62,13 @@ namespace pocketpd {
 
     // —— Stages
 
-    BootStage boot_stage(u8g2_display);
+    BootStage boot_stage;
     ObtainStage obtain_stage(pd_sink, prefs);
-    ProfilePickerStage profile_picker_stage(u8g2_display, pd_sink);
-    NormalStage normal_stage(u8g2_display, pd_sink, output_gate);
-    EnergyStage energy_stage(u8g2_display, output_gate);
-    MenuStage menu_stage(u8g2_display);
-    SettingsStage settings_stage(u8g2_display, u8g2_display, prefs);
+    ProfilePickerStage profile_picker_stage(pd_sink);
+    NormalStage normal_stage(pd_sink, output_gate);
+    EnergyStage energy_stage(output_gate);
+    MenuStage menu_stage;
+    SettingsStage settings_stage(u8g2_display, prefs);
 
     // —— Tasks
 

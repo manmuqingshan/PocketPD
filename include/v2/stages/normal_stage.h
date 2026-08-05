@@ -22,12 +22,11 @@ namespace pocketpd {
 
     class NormalStage : public App::Stage,
                         public App::UseLog<NormalStage>,
-                        public App::UsePublisher<NormalStage> {
+                        public App::UsePublisher<NormalStage>,
+                        public App::UseRender<NormalStage, NormalView> {
     private:
-        using Display = tempo::Display;
         using IntervalTimer = tempo::IntervalTimer;
 
-        Display& m_display;
         PdSinkController& m_pd_sink;
         OutputGate& m_output_gate;
 
@@ -43,9 +42,7 @@ namespace pocketpd {
 
         Mode m_mode;
 
-        IntervalTimer m_render_interval{40};
         uint8_t m_arrow_frame = 0;
-        uint32_t m_last_draw_ms = 0;
         bool m_blink_visible = true;
 
         bool m_locked = false;
@@ -64,8 +61,8 @@ namespace pocketpd {
     public:
         static constexpr const char* LOG_TAG = "Normal";
 
-        NormalStage(Display& display, PdSinkController& pd_sink, OutputGate& output_gate)
-            : m_display(display), m_pd_sink(pd_sink), m_output_gate(output_gate) {}
+        NormalStage(PdSinkController& pd_sink, OutputGate& output_gate)
+            : m_pd_sink(pd_sink), m_output_gate(output_gate) {}
 
         const char* name() const override {
             return "NORMAL";
@@ -125,7 +122,8 @@ namespace pocketpd {
             if (count == 0) {
                 m_mode = PassthroughMode{};
                 publish(PpsTargetEvent{-1, 0, 0});
-                draw();
+                set_render_period(40);
+                request_render();
                 return;
             }
 
@@ -148,21 +146,13 @@ namespace pocketpd {
             m_restore_mv = -1;
             m_restore_ma = -1;
             m_last_active_index = m_active_pdo_index;
-            draw();
+            set_render_period(40);
+            request_render();
         }
 
         void on_tick(Conductor&, uint32_t now_ms) override {
-            if (m_render_interval.tick(now_ms)) {
-                if (m_last_draw_ms != 0) {
-                    const uint32_t period = now_ms - m_last_draw_ms;
-                    const uint32_t hz = period == 0 ? 0 : 1000 / period;
-                    // log.debug("draw period={}ms (~{}Hz)", period, hz);
-                }
-                m_last_draw_ms = now_ms;
-                m_blink_visible = m_output_gate.is_enabled() ||
-                                  (now_ms % READOUT_BLINK_CYCLE_MS) < READOUT_BLINK_ON_MS;
-                draw();
-            }
+            m_blink_visible = m_output_gate.is_enabled() ||
+                              (now_ms % READOUT_BLINK_CYCLE_MS) < READOUT_BLINK_ON_MS;
         }
 
         void on_event(Conductor& conductor, const Event& event, uint32_t) override {
@@ -254,6 +244,46 @@ namespace pocketpd {
             std::visit(handler, event);
         }
 
+        NormalViewModel view_model() const {
+            NormalViewModel vm{
+                .pdo_index = m_active_pdo_index,
+                .comp_offset_mv = m_comp_offset_mv,
+                .load_reading = m_load_reading,
+                .supply_reading = m_supply_reading,
+                .output_enabled = m_output_gate.is_enabled(),
+                .readout_visible = m_blink_visible,
+                .locked = m_locked,
+                .arrow_frame = m_arrow_frame,
+            };
+
+            std::visit(
+                tempo::overloaded{
+                    [&](const PassthroughMode&) { vm.mode = NormalViewMode::Passthrough; },
+                    [&](const FixedMode& fixed) {
+                        vm.mode = NormalViewMode::Fixed;
+                        vm.setpoint_mv = fixed.pdo_max_mv;
+                        vm.setpoint_ma = fixed.pdo_max_ma;
+                    },
+                    [&](const PPSMode& pps) {
+                        vm.mode = NormalViewMode::Pps;
+                        vm.setpoint_mv = pps.target_mv;
+                        vm.setpoint_ma = pps.target_ma;
+                        vm.adjust_mode = pps.adjust_mode;
+                        vm.voltage_idx = pps.voltage_idx;
+                        vm.current_idx = pps.current_idx;
+                    },
+                },
+                m_mode
+            );
+            return vm;
+        }
+
+        void on_after_render() {
+            if (m_output_gate.is_enabled()) {
+                m_arrow_frame = (m_arrow_frame + 1) % pocketpd::bitmap::ARROW_FRAMES.size();
+            }
+        }
+
     private:
         void enter_pps_profile() {
             bool same_profile = m_active_pdo_index == m_last_active_index;
@@ -290,26 +320,6 @@ namespace pocketpd {
             publish(ActiveProfileEvent{false, m_active_pdo_index, nominal_mv, 0});
         }
 
-        NormalViewModel build_view_model() const {
-            return NormalViewModel{
-                .active_pdo_index = m_active_pdo_index,
-                .output_enabled = m_output_gate.is_enabled(),
-                .readout_visible = m_blink_visible,
-                .locked = m_locked,
-                .arrow_frame = m_arrow_frame,
-                .load_reading = m_load_reading,
-                .supply_reading = m_supply_reading,
-                .mode = m_mode,
-                .comp_offset_mv = m_comp_offset_mv,
-            };
-        }
-
-        void draw() {
-            NormalView::render(m_display, build_view_model());
-            if (m_output_gate.is_enabled()) {
-                m_arrow_frame = (m_arrow_frame + 1) % pocketpd::bitmap::ARROW_FRAMES.size();
-            }
-        }
     };
 
 } // namespace pocketpd
